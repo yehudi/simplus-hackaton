@@ -1,0 +1,20 @@
+{
+  "name": "SimplusHackaton",
+  "version": "1.0.0",
+  "description": "Hackaton for turing insights event generation",
+  "main": "index.js",
+  "author": "Yehudi Hollevoet",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start" : "ts-node ./src/index.ts",
+    "build" : "tsc"
+  },
+  "devDependencies": {
+    "@types/event-stream": "^3.3.34",
+    "typescript": "^3.9.7"
+  },
+  "dependencies": {
+    "event-stream": "^4.0.1"
+  }
+}
