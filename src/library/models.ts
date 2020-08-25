@@ -27,6 +27,15 @@ export interface Breadcrumb {
     device: number
 
 }
+/**
+ * Simplified vehicle confirguration.
+ */
+export interface vehicleConfig {
+    /* length of vehicle in meters **/
+    length: number
+    /** legal max weight in tons */
+    max_weight: number
+}
 
 type EventType = 'overweight' | 'underweight' | 'loading' | 'tipping' | 'unexpected_weight_change'
 
