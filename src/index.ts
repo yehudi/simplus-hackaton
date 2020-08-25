@@ -1,3 +1,6 @@
+const INPUT_FILE = './354017110097371-1'
+const OUTPUT_FILE = 'output.csv'
+
 import {
     inputPipe,
     saveResult
@@ -7,11 +10,13 @@ import { Breadcrumb, OverweightEvent } from './library/models'
 import * as memory from './library/memory'
 import * as globals from './library/globals'
 
+console.log('Memory used', (process.memoryUsage().heapUsed) / 1024 / 1024)
+
 function handleBreadcrumbsSync(b: Breadcrumb) {
     // ###############################
     // Put your code here
     // ###############################
-    console.log(b.imei, b.gross_payload, globals.MAX_WEIGHT)
+    console.log(b)
 
     // Example on how to create an event and save it to db
     const event = new OverweightEvent({
@@ -48,7 +53,7 @@ function handleBreadcrumbsSync(b: Breadcrumb) {
     // example on fetching a buffer from memory
     const prev_weights = memory.getBuffer(b.imei, 'last_weights')
 
-    console.log(prev_weights.length)
+    console.log('Memory used', (process.memoryUsage().heapUsed) / 1024 / 1024)
 }
 
 
@@ -56,7 +61,8 @@ function handleBreadcrumbsSync(b: Breadcrumb) {
 /**
  * Program execution
  */
-inputPipe('input.csv', handleBreadcrumbsSync)
+inputPipe(INPUT_FILE, handleBreadcrumbsSync)
     .on('end',() => {
-        saveResult('output.csv', memory.getEvents())
+        console.log('Memory used', (process.memoryUsage().heapUsed) / 1024 / 1024)
+        saveResult(OUTPUT_FILE, memory.getEvents())
     })

@@ -7,14 +7,16 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start" : "ts-node ./src/index.ts",
-    "build" : "tsc"
+    "start": "ts-node ./src/index.ts",
+    "build": "tsc",
+    "result" : "http-server"
   },
   "devDependencies": {
     "@types/event-stream": "^3.3.34",
     "typescript": "^3.9.7"
   },
   "dependencies": {
-    "event-stream": "^4.0.1"
+    "event-stream": "^4.0.1",
+    "http-server": "^0.12.3"
   }
 }

@@ -8,32 +8,38 @@ import { Breadcrumb, TuringEvent } from './models'
  * @param handleBreadcrumbs the breadcrumb handler
  */
 export function inputPipe(file_path: string, handleBreadcrumbs: (b: Breadcrumb, s: es.MapStream) => void) {
-    const s = fs.createReadStream(file_path)
-        .pipe(es.split())
+    const s = fs.createReadStream(file_path, {encoding : 'utf16le'})
+        .pipe(es.split('\n'))
         .pipe(es.mapSync((line: string, cb: any) => {
-            return line.split(',')
-        }))
-        .pipe(es.mapSync((line: string[], cb: any) => {
-            if(line.length >= 12 && line[0] !== 'message_type'){  
-                const breadcrumb: Breadcrumb = {
-                    message_type: parseInt(line[0]),
-                    device_total_payload: parseFloat(line[1]),
-                    gross_total_payload: parseFloat(line[2]),
-                    device_payload: parseFloat(line[3]),
-                    gross_payload: parseFloat(line[4]),
-                    device_serial: parseInt(line[5]),
-                    channel_1: parseFloat(line[6]),
-                    channel_2: parseFloat(line[7]),
-                    channel_3: parseFloat(line[8]),
-                    channel_4: parseFloat(line[9]),
-                    imei: JSON.parse(line[10]),
-                    time: new Date(JSON.parse(line[11])),
-                    device: parseInt(line[12]),
-                }
-                return breadcrumb
+            try {
+                let breadcrumb = JSON.parse(line)
+                return {...breadcrumb, time : new Date(breadcrumb.time)}
+            } catch (err) {
+                return null
             }
-            return null
-        })).pipe(es.mapSync(function (breadcrumb: Breadcrumb|null, cb: any){
+        }))
+        // .pipe(es.mapSync((line: string[], cb: any) => {
+        //     if(line.length >= 12 && line[0] !== 'message_type'){  
+        //         const breadcrumb: Breadcrumb = {
+        //             message_type: parseInt(line[0]),
+        //             device_total_payload: parseFloat(line[1]),
+        //             gross_total_payload: parseFloat(line[2]),
+        //             device_payload: parseFloat(line[3]),
+        //             gross_payload: parseFloat(line[4]),
+        //             device_serial: parseInt(line[5]),
+        //             channel_1: parseFloat(line[6]),
+        //             channel_2: parseFloat(line[7]),
+        //             channel_3: parseFloat(line[8]),
+        //             channel_4: parseFloat(line[9]),
+        //             imei: JSON.parse(line[10]),
+        //             time: new Date(JSON.parse(line[11])),
+        //             device: parseInt(line[12]),
+        //         }
+        //         return breadcrumb
+        //     }
+        //     return null
+        // }))
+        .pipe(es.mapSync(function (breadcrumb: Breadcrumb|null, cb: any){
             if(breadcrumb) {
                 s.pause()
                 handleBreadcrumbs(breadcrumb, s)
@@ -54,4 +60,12 @@ export function saveResult(file_path: string, events: TuringEvent[]) {
     }).join('\n')
 
     fs.writeFileSync(file_path, eventText)
+    fs.writeFileSync(`${file_path}.json`, JSON.stringify(events))
+}
+/**
+ * @param file_path path of the output file
+ * @param objects the list of objects for json export
+ */
+export function saveToFile(file_path: string, objects: any[]) {
+    fs.writeFileSync(`${file_path}`, JSON.stringify(objects))
 }

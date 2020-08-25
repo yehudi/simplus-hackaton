@@ -1,0 +1,165 @@
+<html>
+<head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+</head>
+<body>
+    <div id="tester" style="width:100%;height:600px;"></div>
+    <div>
+        <select id="type">
+            <option selected="selected" value="loading">Loading/Tipping</option>
+            <option value="unexpected-weight-change">Unexpected weight change</option>
+        </select>
+    </div>
+    <button onclick="download()" >Download</button>
+    <button onclick="refresh()" >Refresh</button>
+    <a id="download" style="visibility: hidden;"></a>
+<script>
+
+    const EVENTS_FILE_URL = 'test-events.json'
+    const BREADCRUMBS_FILE_URL = '354017110097371-1'
+    const TESTER = document.getElementById('tester');
+
+
+    $.getJSON(EVENTS_FILE_URL, events => {
+
+ 
+    $.get(BREADCRUMBS_FILE_URL, (res) => {
+        const breadcrumbs = res.split(/\n/g).map(l => {
+            try {
+
+                return JSON.parse(l)
+            } catch (err) {
+                return null
+            }
+        }).filter(a => !!a).sort((a, b) => {
+            if(a.time > b.time) 
+                return 1
+            else if (a.time < b.time )
+                return -1
+            else
+                return 0
+        })
+        //To be removed
+        const data_loss = []
+
+        for( let b in breadcrumbs ) {
+            if(b>0) {
+                    if(((new Date(breadcrumbs[b].time)).getTime() - (new Date(breadcrumbs[b-1].time)).getTime()) > 600000) {
+                        let end = new Date(breadcrumbs[b].time).getTime()
+                        let start = (new Date(breadcrumbs[b-1].time)).getTime()
+                        data_loss.push({ 
+                            gross_total_payload : Math.min(breadcrumbs[b].gross_total_payload, breadcrumbs[b-1].gross_total_payload), 
+                            time :  start + ((end - start) / 2), 
+                            width : (end - start)
+                        })
+                    }
+            }
+        }
+        // end to be removed
+
+        
+        window.EVENTS = []
+
+        window.makeData = () => {
+            return [
+            {
+                type: 'bar',
+                name : 'Data loss',
+                x : data_loss.map(a => (new Date(a.time))),
+                y : data_loss.map(a => 100),
+                width :  data_loss.map(a => (a.width)),
+                marker : {
+                    color : 'rgba(255,0,0, 0.1)',
+                }
+            },
+            {
+                type: 'bar',
+                name : 'Data loss',
+                x : events.map(a => {
+                    let s = (new Date(a.start_time)).getTime()
+                    let e = (new Date(a.end_time)).getTime()
+                    return new Date(s + (e - s)/2)
+                }),
+                y : events.map(a => 10),
+                width :  events.map(a => {
+                    let s = (new Date(a.start_time)).getTime()
+                    let e = (new Date(a.end_time)).getTime()
+                    
+                    return Math.abs(e - s)
+                }),
+                marker : {
+                    color : events.map(e => {
+                        if(e.type === 'tipping')
+                            return 'rgba(0,0,255, 0.5)'
+                        else if(e.type === 'loading')
+                            return 'rgba(0,255,255, 0.5)'
+                        else if(e.type === 'unexpected-weight-change')
+                            return 'rgba(0,255,0, 0.5)'
+                        else {
+                            return 'rgba(255,0,255, 0.5)'
+                        }
+                    }),
+                }
+            },
+            {
+                name :'Weight over time',
+                y: breadcrumbs.map(b => b.gross_total_payload),
+                x: breadcrumbs.map(a => (new Date(a.time))) }
+            ]
+        }
+
+        Plotly.newPlot( TESTER, makeData(), {
+                margin: { t: 0 },
+            });
+
+            var SELECTING = false
+            var START = null
+
+
+            TESTER.on('plotly_click', (evt) => {
+                const el = document.getElementById('type')
+                if(SELECTING){
+                    let s = START
+                    let e = evt.points[0]
+                    if(s.x > e.x) {
+                        let a = e
+                        e = s
+                        s = a
+                    }
+                    const event = {
+                            start_weigh :  s?.y,
+                            end_weigh :  e?.y,
+                            start_time : s?.x,
+                            end_time : e?.x,
+                            type :  (el.options[el.selectedIndex].value == 'loading') ? ((s?.y > e?.y ) ? 'tipping' : 'loading') : el.options[el.selectedIndex].value
+                        }
+                    window.EVENTS.push(event)
+                    events.push(event)
+                    SELECTING = false
+                    START = null
+                    console.log(window.EVENTS)
+                }
+                else {
+                    SELECTING = true
+                    START = { ...evt.points[0] }
+                }
+                console.log(evt)
+            })
+
+    })
+    })
+    function refresh() {
+        Plotly.react(TESTER, makeData())
+    }
+
+    function download() {
+        var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.EVENTS));
+        var dlAnchorElem = document.getElementById('download');
+        dlAnchorElem.setAttribute("href",     dataStr     );
+        dlAnchorElem.setAttribute("download", "events.json");
+        dlAnchorElem.click();
+    }
+</script>
+</body>
+</html>
