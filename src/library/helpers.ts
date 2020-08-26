@@ -1,4 +1,4 @@
-import { Breadcrumb, vehicleConfig } from "./models";
+import { Breadcrumb, vehicleConfig, OverweightEvent } from "./models";
 import * as memory from './memory'
 
 export const testOverload = (config: vehicleConfig, data: Breadcrumb) => {
@@ -70,14 +70,9 @@ export const deadreckoning = (b: Breadcrumb) => {
             if ( Math.abs(pid.sumError) >= globals.MAX_ERROR ) {
                 const buffer: any[] = memory.getBuffer(b.imei, 'pid')
                 const _m = buffer[m.length - 1]
-                const error = _m.currentValue - b.gross_total_payload
 
-                const shouldResetTarget: boolean = detection(buffer, b)
-
-                console.log(`Event detection @${step}`)
-                if (shouldResetTarget) {
-                    pid.setTarget(b.gross_total_payload)
-                }
+                console.log(`Change detection @${step}`)
+                pid.setTarget(b.gross_total_payload)
                 pid.reset()
                 step = 1
             }
@@ -86,16 +81,28 @@ export const deadreckoning = (b: Breadcrumb) => {
 }
 
 
-const detection = (buffer: any[], b: Breadcrumb) => {
-    let restart = false
-    // if (overload) {
-    //     new Overload (b)
-    //     restart = true
-    // }
-     
-    // if (unload) {
-    //     new Unloaad (b)
+// const detection = (buffer: any[], b: Breadcrumb) => {
+//     let restart = false
 
-    // }
-    return restart
-}
+//     if (overload(buffer)) {
+//         // Example on how to create an event and save it to db
+//         const event = new OverweightEvent({
+//             start : b.time,
+//             end : b.time,
+//             imei : b.imei,
+//             max_weight : b.gross_payload
+//         })
+//         memory.saveEvent(event)
+//     }
+
+//     //Example on how to edit an event and update db
+//     const eventUpdate = new OverweightEvent({
+//         start : b.time,
+//         end : b.time,
+//         imei : b.imei,
+//         max_weight : b.gross_payload + 5
+//     })
+
+//     memory.saveEvent(eventUpdate)
+//     return restart
+// }
