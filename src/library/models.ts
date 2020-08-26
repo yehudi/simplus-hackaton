@@ -35,6 +35,8 @@ export interface vehicleConfig {
     length: number
     /** legal max weight in tons */
     max_weight: number
+    /** min vehicle weight */
+    min_weight: number
 }
 
 type EventType = 'overweight' | 'underweight' | 'loading' | 'tipping' | 'unexpected_weight_change'

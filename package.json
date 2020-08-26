@@ -8,19 +8,17 @@
   "private": true,
   "scripts": {
     "start": "ts-node ./src/index.ts",
-<<<<<<< HEAD
     "build": "tsc",
-    "result" : "http-server"
-=======
-    "build": "tsc"
->>>>>>> 62989904d7adb09a4919f6485b142dfef83e1e4b
+    "result": "http-server"
   },
   "devDependencies": {
     "@types/event-stream": "^3.3.34",
+    "ts-node": "^9.0.0",
     "typescript": "^3.9.7"
   },
   "dependencies": {
     "event-stream": "^4.0.1",
-    "http-server": "^0.12.3"
+    "http-server": "^0.12.3",
+    "node-pid-controller": "^1.0.1"
   }
 }
