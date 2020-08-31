@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "start": "ts-node ./src/index.ts",
+    "train": "ts-node ./src/train.ts",
     "build": "tsc",
     "result": "http-server"
   },
@@ -17,6 +18,7 @@
     "typescript": "^3.9.7"
   },
   "dependencies": {
+    "brain.js": "^2.0.0-beta.2",
     "event-stream": "^4.0.1",
     "http-server": "^0.12.3",
     "node-pid-controller": "^1.0.1"

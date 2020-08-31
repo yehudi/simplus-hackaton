@@ -1,12 +1,14 @@
-export const NOISE_THRESHOLD = 1
+// Vehicle globals
 export const VEHICLE_LENGTH = 18
-export const VEHICLE_MAX_WEIGHT = 56
-export const VEHICLE_MIN_WEIGHT = 20
-export const LOADING_WEIGHT_THRESHOLD = 3
-export const LOADING_SLOPE_THRESHOLD = 500
-export const MAX_ERROR = 200
-export const INTERVAL = 5
-export const RECKONING_STEP  = 20
+export const VEHICLE_WEIGHT = 20
+export const VEHICLE_WEIGHT_LIMIT = 56
 
-export const TIPPING_WEIGHT_THRESHOLD = 2
-export const TIPPING_SLOPE_THRESHOLD = -500
+// Controller globals
+export const CONTROLLER_PROPORTINAL_GAIN = 3
+export const CONTROLLER_INTEGRAL_GAIN = 1
+export const CONTROLLER_MAX_ERROR = 200
+export const MEASUREMENT_DT_INTERVAL = 5
+export const PREDICTION_NOISE_THRESHOLD = 2
+
+// Algorithm
+export const RECKON_STEP  = 100

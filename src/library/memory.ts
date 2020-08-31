@@ -1,10 +1,10 @@
 import { TuringEvent } from './models'
 
 const MEMORY = new Map<string, any>()
-export const BUFFER_MEMORY = new Map<string, any[]>()
+const BUFFER_MEMORY = new Map<string, any[]>()
 const EVENT_DB = new Map<string, TuringEvent>()
 
-const MAX_BUFFER_SIZE = 10
+export const MAX_BUFFER_SIZE = 5
 
 /**
  * Push to a capped buffer

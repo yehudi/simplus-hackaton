@@ -1,42 +1,56 @@
-import { Breadcrumb, vehicleConfig, OverweightEvent } from "./models";
+import { Breadcrumb } from "./models";
 import * as memory from './memory'
 
-export const testOverload = (config: vehicleConfig, data: Breadcrumb) => {
-    const bridge = (config.length * 2.1) + 18
-    const limit = Math.min(config.max_weight, bridge)
+export const testOverload = (config: any, data: Breadcrumb) => {
+    const limit = gvm(config)
     return data.gross_payload > limit
+}
+
+export const gvm = (config: {
+    length: number
+    max_weight: number
+}): number => {
+    const bridge = (config.length * 2.1) + 18
+    return Math.min(config.max_weight, bridge)
 }
 
 // FROM HERE!
 import * as globals from './globals'
 import controller from 'node-pid-controller'
-
 export const pid =  new controller({
-    k_p: globals.LOADING_WEIGHT_THRESHOLD,
-    k_i: globals.NOISE_THRESHOLD,
-    i_max: globals.MAX_ERROR,
-    dt: globals.INTERVAL
+    k_p: globals.CONTROLLER_PROPORTINAL_GAIN,
+    k_i: globals.CONTROLLER_INTEGRAL_GAIN,
+    i_max: globals.CONTROLLER_MAX_ERROR,
+    dt: globals.MEASUREMENT_DT_INTERVAL
 })
-let step = 1 
-let mse = 0 
 
 export const deadreckoning = (b: Breadcrumb) => {
 
-    const m: any[] = memory.getBuffer(b.imei, 'pid')
+    const tick = memory.getValue(b.imei, 'tick')
+    memory.setValue(b.imei, 'modified', false)
 
     // Check if we know anything about the system.
     // If this is true, do the following:
     // * save this breadcrumb.
-    // * save what we know to a controller.
     // * assume the vehicle is empty.
-    if (m.length === 0 ) {
+    // * save assumptions to a controller.
+    if (! tick ) {
         memory.setValue(b.imei, 'breadcrumb', b)
-        memory.pushToBuffer(b.imei, 'pid', pid)
-        pid.setTarget(globals.VEHICLE_MIN_WEIGHT)
-
-        mse = pid.update(b.gross_total_payload)
-        step += 1
+        memory.setValue(b.imei, 'tick', 1)
+        
+        pid.setTarget(globals.VEHICLE_WEIGHT)
+        pid.update(b.gross_total_payload)
+        
+        memory.pushToBuffer(b.imei, 'pid', Object.assign({
+            tick: 1,
+            type: 0, // 'bootstrap',
+            time: b.time,
+            _timestamp: Date.now(),
+            _tag: (b as any).tag
+        }, pid))
+        memory.setValue(b.imei, 'modified', true)
     }
+
     // This assumes we already know something about the system.
     // Do the following:
     // * update the system with a new measurement.
@@ -44,65 +58,97 @@ export const deadreckoning = (b: Breadcrumb) => {
     // * make an assumption about what will happen.
     // * Validate the assumption by check the max error is not reached
     else {
-        mse = pid.update(b.gross_total_payload)
+        pid.update(b.gross_total_payload)
         const _b: any = memory.getValue(b.imei, 'breadcrumb')
 
-        const slope = (_b.gross_total_payload - b.gross_total_payload) / step
-        const assumption = slope * step + b.gross_total_payload
+        // model the next step
+        const slope = (_b.gross_total_payload - b.gross_total_payload) / tick
+        const model = slope * tick + b.gross_total_payload
+
         memory.setValue(b.imei, 'breadcrumb', b)
-        console.log(` @${step} | slope ${slope} | prediction ${assumption} | MSE ${pid.sumError} | weight ${b.gross_total_payload} | target ${pid.target}`)
+        // console.log(` tick @${tick} | Error ${pid.sumError} | prediction ${model}  | target ${pid.target} | weight ${b.gross_total_payload} \n`)
         
-        if (step === globals.RECKONING_STEP) {
-            memory.pushToBuffer(b.imei, 'pid', pid)
-            const absoluteerror = Math.abs(assumption - b.gross_total_payload) 
-            const target = absoluteerror > globals.NOISE_THRESHOLD ? b.gross_total_payload : assumption
+        if (tick === globals.RECKON_STEP) {
+            memory.pushToBuffer(b.imei, 'pid', Object.assign({
+                tick,
+                type: 1 , // 'reckon',
+                time: b.time,
+                _timestamp: Date.now(),
+                _tag: (b as any).tag
+            }, pid))
             pid.reset()
-            // pid.setTarget(target)
-
-            step = 1
+            memory.setValue(b.imei, 'tick', 1)
+            memory.setValue(b.imei, 'modified', true)
         }
-        // If it is not, do the following:
-        // * add to step ticker
-        // * add to memory for analysis
         else {
-            step += 1  
-            mse = pid.update(b.gross_total_payload)
-            if ( Math.abs(pid.sumError) >= globals.MAX_ERROR ) {
-                const buffer: any[] = memory.getBuffer(b.imei, 'pid')
-                const _m = buffer[m.length - 1]
+            const tick = memory.getValue(b.imei, 'tick')
+            memory.setValue(b.imei, 'tick', tick + 1)
+            pid.update(b.gross_total_payload)
+            if ( Math.abs(pid.sumError) >= globals.CONTROLLER_MAX_ERROR ) {
+                // console.log(`Change detected @${tick}`)
+                memory.pushToBuffer(b.imei, 'pid', Object.assign({
+                    tick,
+                    type: 2, //'change',
+                    time: b.time,
+                    _timestamp: Date.now(),
+                    _tag: (b as any).tag
+                }, pid))
 
-                console.log(`Change detection @${step}`)
-                pid.setTarget(b.gross_total_payload)
+                const absoluteerror = Math.abs(model - pid.target) 
+                const target = absoluteerror > globals.PREDICTION_NOISE_THRESHOLD ? b.gross_total_payload : model
+                pid.setTarget(target)
                 pid.reset()
-                step = 1
+                memory.setValue(b.imei, 'tick', 1)
+                memory.setValue(b.imei, 'modified', true)
             }
         }
     }
 }
 
+interface Events {
+    start_weight: number
+    end_weight: number
+    start_time: string
+    end_time: string
+    type: 'loading' | 'tipping' | 'unexpected-weight-change'
+}
 
-// const detection = (buffer: any[], b: Breadcrumb) => {
-//     let restart = false
+export const tag = (b: Breadcrumb, events: Events[]) : {
+    tipping: number
+    loading: number
+    unexpected: number
+} => {
+    const res = {
+        tipping: 0,
+        loading: 0,
+        unexpected: 0
+    }
+    const  tip = events.filter(e => b.time >= new Date(e.start_time) && b.time <= new Date(e.end_time) && e.type === 'tipping')[0]
+    if (tip) {
+        res.tipping = 1
+    }
+    const  load = events.filter(e => b.time >= new Date(e.start_time) && b.time <= new Date(e.end_time) && e.type === 'loading')[0]
+    if (load) {
+        res.loading = 1
+    }
+    const  unexpected = events.filter(e => b.time >= new Date(e.start_time) && b.time <= new Date(e.end_time) && e.type === 'unexpected-weight-change')[0]
+    if (unexpected) {
+        res.unexpected = 1
+    }
+    return res
 
-//     if (overload(buffer)) {
-//         // Example on how to create an event and save it to db
-//         const event = new OverweightEvent({
-//             start : b.time,
-//             end : b.time,
-//             imei : b.imei,
-//             max_weight : b.gross_payload
-//         })
-//         memory.saveEvent(event)
-//     }
+}
 
-//     //Example on how to edit an event and update db
-//     const eventUpdate = new OverweightEvent({
-//         start : b.time,
-//         end : b.time,
-//         imei : b.imei,
-//         max_weight : b.gross_payload + 5
-//     })
+export const fill = (input: number[]) => {
+    if (input.length < memory.MAX_BUFFER_SIZE) {
+        const fill = memory.MAX_BUFFER_SIZE - input.length - 1
+        const d = new Array(fill)
+        for (let i = 0; i < fill; i++) {
+            d.push(-1)
+        }
 
-//     memory.saveEvent(eventUpdate)
-//     return restart
-// }
+        input.concat(d)
+    }
+    return input
+}
+

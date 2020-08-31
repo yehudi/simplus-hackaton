@@ -27,18 +27,20 @@ export interface Breadcrumb {
     device: number
 
 }
-/**
- * Simplified vehicle confirguration.
- */
-export interface vehicleConfig {
-    /* length of vehicle in meters **/
-    length: number
-    /** legal max weight in tons */
-    max_weight: number
-    /** min vehicle weight */
-    min_weight: number
-}
 
+export interface MemoryBuffer {
+    type: number //'change',
+    time: number
+    _timestamp: Date
+    sumError: number
+    currentValue: number
+    tick: number
+    _tag: {
+        loading: number
+        tipping: number
+        unexpected: number
+    }
+}
 type EventType = 'overweight' | 'underweight' | 'loading' | 'tipping' | 'unexpected_weight_change'
 
 interface BaseEventParams {
